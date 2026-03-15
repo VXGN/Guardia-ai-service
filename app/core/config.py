@@ -6,7 +6,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent  # guardia_ai_service/
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "mysql+aiomysql://root:password@localhost:3306/guardia"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/guardia"
     FIREBASE_PROJECT_ID: str = ""
     FIREBASE_CLIENT_EMAIL: str = ""
     FIREBASE_PRIVATE_KEY: str = ""

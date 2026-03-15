@@ -9,7 +9,6 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import mysql
 
 
 # revision identifiers, used by Alembic.
@@ -51,9 +50,9 @@ def upgrade() -> None:
         sa.Column("is_anonymous_mode", sa.Boolean(), nullable=False),
         sa.Column("is_verified", sa.Boolean(), nullable=False),
         sa.Column("fcm_token", sa.Text(), nullable=True),
-        sa.Column("created_at", mysql.DATETIME(fsp=6), nullable=False),
-        sa.Column("updated_at", mysql.DATETIME(fsp=6), nullable=False),
-        sa.Column("deleted_at", mysql.DATETIME(fsp=6), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.Column("deleted_at", sa.DateTime(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("email"),
         sa.UniqueConstraint("phone_number"),
@@ -72,8 +71,8 @@ def upgrade() -> None:
         sa.Column("is_main_road", sa.Boolean(), nullable=False),
         sa.Column("near_security_post", sa.Boolean(), nullable=False),
         sa.Column("osm_way_id", sa.BigInteger(), nullable=True),
-        sa.Column("created_at", mysql.DATETIME(fsp=6), nullable=False),
-        sa.Column("updated_at", mysql.DATETIME(fsp=6), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("osm_way_id"),
     )
@@ -88,9 +87,9 @@ def upgrade() -> None:
         sa.Column("incident_count", sa.Integer(), nullable=False),
         sa.Column("dominant_type", incident_type_enum, nullable=True),
         sa.Column("time_slot", time_slot_enum, nullable=True),
-        sa.Column("valid_from", mysql.DATETIME(fsp=6), nullable=False),
-        sa.Column("valid_until", mysql.DATETIME(fsp=6), nullable=False),
-        sa.Column("created_at", mysql.DATETIME(fsp=6), nullable=False),
+        sa.Column("valid_from", sa.DateTime(), nullable=False),
+        sa.Column("valid_until", sa.DateTime(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
 
@@ -104,9 +103,9 @@ def upgrade() -> None:
         sa.Column("crime_type", sa.String(length=100), nullable=True),
         sa.Column("severity_score", sa.SmallInteger(), nullable=True),
         sa.Column("area", sa.String(length=100), nullable=True),
-        sa.Column("published_at", mysql.DATETIME(fsp=6), nullable=True),
-        sa.Column("scraped_at", mysql.DATETIME(fsp=6), nullable=False),
-        sa.Column("created_at", mysql.DATETIME(fsp=6), nullable=False),
+        sa.Column("published_at", sa.DateTime(), nullable=True),
+        sa.Column("scraped_at", sa.DateTime(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("url"),
     )
@@ -122,9 +121,9 @@ def upgrade() -> None:
         sa.Column("avg_severity", sa.Numeric(precision=5, scale=2), nullable=False),
         sa.Column("dominant_crime", sa.String(length=100), nullable=True),
         sa.Column("score", sa.Numeric(precision=5, scale=2), nullable=False),
-        sa.Column("period_start", mysql.DATETIME(fsp=6), nullable=False),
-        sa.Column("period_end", mysql.DATETIME(fsp=6), nullable=False),
-        sa.Column("calculated_at", mysql.DATETIME(fsp=6), nullable=False),
+        sa.Column("period_start", sa.DateTime(), nullable=False),
+        sa.Column("period_end", sa.DateTime(), nullable=False),
+        sa.Column("calculated_at", sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("area_crime_scores_area_idx", "area_crime_scores", ["area"], unique=False)
@@ -135,7 +134,7 @@ def upgrade() -> None:
         sa.Column("user_id", sa.String(length=36), nullable=True),
         sa.Column("incident_type", incident_type_enum, nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("incident_at", mysql.DATETIME(fsp=6), nullable=False),
+        sa.Column("incident_at", sa.DateTime(), nullable=False),
         sa.Column("latitude", sa.Numeric(precision=10, scale=8), nullable=False),
         sa.Column("longitude", sa.Numeric(precision=11, scale=8), nullable=False),
         sa.Column("latitude_blurred", sa.Numeric(precision=7, scale=5), nullable=False),
@@ -144,9 +143,9 @@ def upgrade() -> None:
         sa.Column("is_anonymous", sa.Boolean(), nullable=False),
         sa.Column("status", report_status_enum, nullable=False),
         sa.Column("severity_score", sa.SmallInteger(), nullable=True),
-        sa.Column("created_at", mysql.DATETIME(fsp=6), nullable=False),
-        sa.Column("updated_at", mysql.DATETIME(fsp=6), nullable=False),
-        sa.Column("deleted_at", mysql.DATETIME(fsp=6), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.Column("deleted_at", sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -162,15 +161,15 @@ def upgrade() -> None:
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("user_id", sa.String(length=36), nullable=False),
         sa.Column("status", journey_status_enum, nullable=False),
-        sa.Column("started_at", mysql.DATETIME(fsp=6), nullable=False),
-        sa.Column("ended_at", mysql.DATETIME(fsp=6), nullable=True),
+        sa.Column("started_at", sa.DateTime(), nullable=False),
+        sa.Column("ended_at", sa.DateTime(), nullable=True),
         sa.Column("origin_lat", sa.Numeric(precision=10, scale=8), nullable=True),
         sa.Column("origin_lng", sa.Numeric(precision=11, scale=8), nullable=True),
         sa.Column("destination_lat", sa.Numeric(precision=10, scale=8), nullable=True),
         sa.Column("destination_lng", sa.Numeric(precision=11, scale=8), nullable=True),
         sa.Column("safe_arrival_confirmed", sa.Boolean(), nullable=False),
-        sa.Column("created_at", mysql.DATETIME(fsp=6), nullable=False),
-        sa.Column("updated_at", mysql.DATETIME(fsp=6), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -183,8 +182,8 @@ def upgrade() -> None:
         sa.Column("risk_score", sa.Numeric(precision=5, scale=2), nullable=False),
         sa.Column("incident_count", sa.Integer(), nullable=False),
         sa.Column("dominant_incident_type", incident_type_enum, nullable=True),
-        sa.Column("calculated_at", mysql.DATETIME(fsp=6), nullable=False),
-        sa.Column("valid_until", mysql.DATETIME(fsp=6), nullable=True),
+        sa.Column("calculated_at", sa.DateTime(), nullable=False),
+        sa.Column("valid_until", sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(["segment_id"], ["road_segments.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("segment_id", "time_slot", name="risk_scores_segment_slot_uidx"),
@@ -196,7 +195,7 @@ def upgrade() -> None:
         sa.Column("journey_id", sa.String(length=36), nullable=False),
         sa.Column("latitude", sa.Numeric(precision=10, scale=8), nullable=False),
         sa.Column("longitude", sa.Numeric(precision=11, scale=8), nullable=False),
-        sa.Column("recorded_at", mysql.DATETIME(fsp=6), nullable=False),
+        sa.Column("recorded_at", sa.DateTime(), nullable=False),
         sa.Column("is_anomaly_flagged", sa.Boolean(), nullable=False),
         sa.ForeignKeyConstraint(["journey_id"], ["journeys.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),

@@ -3,7 +3,7 @@ uvicorn[standard]
 alembic
 pydantic-settings
 sqlalchemy[asyncio]
-aiomysql
+asyncpg
 httpx
 PyJWT
 cryptography
