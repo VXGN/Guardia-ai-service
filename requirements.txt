@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+alembic
+pydantic-settings
+sqlalchemy[asyncio]
+aiomysql
+httpx
+PyJWT
+cryptography
+scikit-learn
+numpy
+networkx
+beautifulsoup4
+
+python-dotenv
