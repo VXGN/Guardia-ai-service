@@ -4,6 +4,7 @@ alembic
 pydantic-settings
 sqlalchemy[asyncio]
 asyncpg
+psycopg2-binary
 httpx
 PyJWT
 cryptography
