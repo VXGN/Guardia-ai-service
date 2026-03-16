@@ -18,10 +18,20 @@ class SegmentRisk(BaseModel):
     lng: float
 
 
+class NewsLocationPoint(BaseModel):
+    article_id: str
+    source: str
+    area: str
+    severity_score: int
+    lat: float
+    lng: float
+
+
 class RiskAnalysisOut(BaseModel):
     overall_risk_score: float
     risk_level: str
     segments: list[SegmentRisk]
+    news_locations: list[NewsLocationPoint]
     recommendations: list[str]
     analyzed_at: str
 

@@ -6,6 +6,7 @@ import time
 from datetime import datetime
 
 from app.core.database import async_session
+from app.services.analysis_sync import run_analysis_sync_job
 from app.services.news_scraper import scrape_all_sources, enrich_articles_with_first_paragraph
 from app.services.crime_scorer import analyze_article
 from app.repositories.news_repos import NewsArticleRepository
@@ -18,7 +19,7 @@ _scrape_cache: dict = {"result": None, "expires_at": 0.0}
 _scrape_lock = asyncio.Lock()
 
 
-async def run_scrape_job() -> dict:
+async def run_scrape_job(trigger_analysis_sync: bool = True) -> dict:
     """Scrape all sources, score articles, and update area scores."""
     logger.info("Starting news scrape...")
 
@@ -54,10 +55,22 @@ async def run_scrape_job() -> dict:
         "new_articles": new_count,
         "crime_articles": len(scored_articles),
         "enriched_snippets": enriched_count,
+        "analysis_synced": False,
+        "heatmap_clusters": 0,
     }
+
+    if trigger_analysis_sync:
+        analysis_result = await run_analysis_sync_job()
+        result["analysis_synced"] = True
+        result["heatmap_clusters"] = analysis_result["clusters"]
+
     logger.info(
-        "Scrape complete: %d scraped, %d crime-related, %d new",
-        total_scraped, len(scored_articles), new_count,
+        "Scrape complete: %d scraped, %d crime-related, %d new, analysis_synced=%s, heatmap_clusters=%d",
+        total_scraped,
+        len(scored_articles),
+        new_count,
+        result["analysis_synced"],
+        result["heatmap_clusters"],
     )
     return result
 

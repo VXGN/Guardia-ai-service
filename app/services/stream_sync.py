@@ -5,52 +5,10 @@ import logging
 from collections.abc import Awaitable, Callable
 
 from app.core.config import get_settings
-from app.core.database import async_session
-from app.repositories.repos import HeatmapRepository, ReportRepository, RiskScoreRepository, SegmentRepository
-from app.services.clustering import cluster_reports
+from app.services.analysis_sync import run_analysis_sync_job
 from app.services.news_scheduler import run_scrape_job
-from app.services.risk_analysis import compute_risk_scores
 
 logger = logging.getLogger(__name__)
-_analysis_sync_lock = asyncio.Lock()
-
-
-async def run_analysis_sync_job() -> dict:
-    """Recompute risk scores and heatmap clusters, then persist to DB."""
-    async with _analysis_sync_lock:
-        settings = get_settings()
-
-        async with async_session() as db:
-            report_repo = ReportRepository(db)
-            segment_repo = SegmentRepository(db)
-            risk_repo = RiskScoreRepository(db)
-            heatmap_repo = HeatmapRepository(db)
-
-            reports = await report_repo.get_recent(settings.RISK_DECAY_DAYS)
-            segments = await segment_repo.get_all()
-
-            await compute_risk_scores(segments, reports, risk_repo)
-
-            clusters = await cluster_reports(
-                reports,
-                settings.DBSCAN_EPS_KM,
-                settings.DBSCAN_MIN_SAMPLES,
-            )
-            # Always replace to avoid stale clusters when no cluster is produced.
-            await heatmap_repo.replace_clusters(clusters)
-
-    result = {
-        "recent_reports": len(reports),
-        "segments": len(segments),
-        "clusters": len(clusters),
-    }
-    logger.info(
-        "Analysis sync complete: %d reports, %d segments, %d clusters",
-        result["recent_reports"],
-        result["segments"],
-        result["clusters"],
-    )
-    return result
 
 
 async def _run_loop(
@@ -88,7 +46,7 @@ def start_background_sync(stop_event: asyncio.Event) -> list[asyncio.Task]:
         _run_loop(
             name="news",
             interval_seconds=settings.NEWS_SYNC_INTERVAL_SECONDS,
-            job=run_scrape_job,
+            job=lambda: run_scrape_job(trigger_analysis_sync=False),
             stop_event=stop_event,
             run_on_startup=settings.RUN_SYNC_ON_STARTUP,
         )

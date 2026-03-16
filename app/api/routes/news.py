@@ -48,11 +48,15 @@ async def trigger_scrape(_: dict = Depends(verify_firebase_token)):
             "total_scraped": 0,
             "new_articles": 0,
             "crime_articles": 0,
+            "analysis_synced": False,
+            "heatmap_clusters": 0,
         }
         return ScrapeResultOut(
             total_scraped=result["total_scraped"],
             new_articles=result["new_articles"],
             crime_articles=result["crime_articles"],
+            analysis_synced=result["analysis_synced"],
+            heatmap_clusters=result["heatmap_clusters"],
             message="Scrape failed. Check server logs.",
         )
 
@@ -60,5 +64,7 @@ async def trigger_scrape(_: dict = Depends(verify_firebase_token)):
         total_scraped=result["total_scraped"],
         new_articles=result["new_articles"],
         crime_articles=result["crime_articles"],
-        message="Scrape completed successfully",
+        analysis_synced=result["analysis_synced"],
+        heatmap_clusters=result["heatmap_clusters"],
+        message="Scrape completed and analysis synced",
     )

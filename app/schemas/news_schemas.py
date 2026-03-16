@@ -24,6 +24,8 @@ class ScrapeResultOut(BaseModel):
     total_scraped: int
     new_articles: int
     crime_articles: int
+    analysis_synced: bool = False
+    heatmap_clusters: int = 0
     message: str
 
 
