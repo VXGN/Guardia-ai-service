@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.firebase import verify_firebase_token
 from app.schemas.report_schemas import ReportCreate, ReportOut
 from app.repositories.repos import ReportRepository
+from app.services.stream_sync import run_analysis_sync_job
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -12,6 +13,7 @@ router = APIRouter(prefix="/reports", tags=["reports"])
 @router.post("", response_model=ReportOut)
 async def create_report(
     body: ReportCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(verify_firebase_token),
 ):
@@ -20,6 +22,8 @@ async def create_report(
         user_id=user.get("uid") or user.get("user_id"),
         **body.model_dump(),
     )
+    # Recompute and persist heatmap/risk asynchronously after each new report.
+    background_tasks.add_task(run_analysis_sync_job)
     return report
 
 

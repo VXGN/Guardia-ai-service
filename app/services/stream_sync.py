@@ -12,30 +12,32 @@ from app.services.news_scheduler import run_scrape_job
 from app.services.risk_analysis import compute_risk_scores
 
 logger = logging.getLogger(__name__)
+_analysis_sync_lock = asyncio.Lock()
 
 
 async def run_analysis_sync_job() -> dict:
     """Recompute risk scores and heatmap clusters, then persist to DB."""
-    settings = get_settings()
+    async with _analysis_sync_lock:
+        settings = get_settings()
 
-    async with async_session() as db:
-        report_repo = ReportRepository(db)
-        segment_repo = SegmentRepository(db)
-        risk_repo = RiskScoreRepository(db)
-        heatmap_repo = HeatmapRepository(db)
+        async with async_session() as db:
+            report_repo = ReportRepository(db)
+            segment_repo = SegmentRepository(db)
+            risk_repo = RiskScoreRepository(db)
+            heatmap_repo = HeatmapRepository(db)
 
-        reports = await report_repo.get_recent(settings.RISK_DECAY_DAYS)
-        segments = await segment_repo.get_all()
+            reports = await report_repo.get_recent(settings.RISK_DECAY_DAYS)
+            segments = await segment_repo.get_all()
 
-        await compute_risk_scores(segments, reports, risk_repo)
+            await compute_risk_scores(segments, reports, risk_repo)
 
-        clusters = await cluster_reports(
-            reports,
-            settings.DBSCAN_EPS_KM,
-            settings.DBSCAN_MIN_SAMPLES,
-        )
-        # Always replace to avoid stale clusters when no cluster is produced.
-        await heatmap_repo.replace_clusters(clusters)
+            clusters = await cluster_reports(
+                reports,
+                settings.DBSCAN_EPS_KM,
+                settings.DBSCAN_MIN_SAMPLES,
+            )
+            # Always replace to avoid stale clusters when no cluster is produced.
+            await heatmap_repo.replace_clusters(clusters)
 
     result = {
         "recent_reports": len(reports),

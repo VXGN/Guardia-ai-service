@@ -31,8 +31,7 @@ async def analyze_risk(
     await compute_risk_scores(segments, reports, risk_repo)
 
     clusters = await cluster_reports(reports, settings.DBSCAN_EPS_KM, settings.DBSCAN_MIN_SAMPLES)
-    if clusters:
-        await heatmap_repo.replace_clusters(clusters)
+    await heatmap_repo.replace_clusters(clusters)
 
     result = await analyze_path_risk(
         segments, risk_repo,
