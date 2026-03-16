@@ -15,7 +15,7 @@ def get_async_database_url() -> str:
     cleaned_query.pop("sslmode", None)
     cleaned_query.pop("channel_binding", None)
 
-    return str(parsed.set(query=cleaned_query))
+    return parsed.set(query=cleaned_query).render_as_string(hide_password=False)
 
 
 def get_async_engine_kwargs() -> dict:
