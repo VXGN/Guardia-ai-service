@@ -15,7 +15,7 @@ from app.schemas.news_schemas import (
     AreaDetailOut,
     ScrapeResultOut,
 )
-from app.services.news_scheduler import run_scrape_job, get_or_scrape
+from app.services.news_scheduler import run_scrape_job
 
 router = APIRouter(prefix="/news", tags=["news"])
 logger = logging.getLogger(__name__)
@@ -31,11 +31,6 @@ async def list_articles(
     db: AsyncSession = Depends(get_db),
 ):
     """List scraped crime news articles with optional filters."""
-    try:
-        await get_or_scrape()
-    except Exception:
-        logger.exception("Background scrape refresh failed in /news/articles")
-
     repo = NewsArticleRepository(db)
     articles = await repo.list_articles(
         source=source,
@@ -50,11 +45,6 @@ async def list_articles(
 @router.get("/area-scores", response_model=list[AreaCrimeScoreOut])
 async def get_area_scores(db: AsyncSession = Depends(get_db)):
     """Get crime scores for all NTB areas, sorted by score descending."""
-    try:
-        await get_or_scrape()
-    except Exception:
-        logger.exception("Background scrape refresh failed in /news/area-scores")
-
     repo = AreaCrimeScoreRepository(db)
     scores = await repo.get_all()
     return [AreaCrimeScoreOut.model_validate(s) for s in scores]
@@ -63,11 +53,6 @@ async def get_area_scores(db: AsyncSession = Depends(get_db)):
 @router.get("/area-scores/{area}", response_model=AreaDetailOut)
 async def get_area_detail(area: str, db: AsyncSession = Depends(get_db)):
     """Get detailed crime score and recent articles for a specific NTB area."""
-    try:
-        await get_or_scrape()
-    except Exception:
-        logger.exception("Background scrape refresh failed in /news/area-scores/{area}")
-
     score_repo = AreaCrimeScoreRepository(db)
     article_repo = NewsArticleRepository(db)
 

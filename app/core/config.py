@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     NEWS_SCRAPE_MAX_ARTICLES_PER_SOURCE: int = 20
     NEWS_SCRAPE_MAX_PAGES: int = 3
     NEWS_SCRAPE_INCLUDE_SOURCES: str = "detik,kompas,insidelombok,postlombok"
+    ENABLE_BACKGROUND_SYNC: bool = True
+    NEWS_SYNC_INTERVAL_SECONDS: int = 900
+    ANALYSIS_SYNC_INTERVAL_SECONDS: int = 300
+    RUN_SYNC_ON_STARTUP: bool = True
 
     model_config = {"env_file": str(BASE_DIR / ".env"), "extra": "ignore"}
 
