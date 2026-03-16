@@ -26,6 +26,9 @@ class ScrapeResultOut(BaseModel):
     crime_articles: int
     analysis_synced: bool = False
     heatmap_clusters: int = 0
+    risk_scores: int = 0
+    area_scores: int = 0
+    segments: int = 0
     message: str
 
 

@@ -169,3 +169,21 @@ class NewsArticle(Base):
         Index("news_articles_area_idx", "area"),
         Index("news_articles_severity_idx", "severity_score"),
     )
+
+
+class AreaCrimeScore(Base):
+    __tablename__ = "area_crime_scores"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
+    area: Mapped[str] = mapped_column(String(100))
+    total_articles: Mapped[int] = mapped_column(Integer)
+    avg_severity: Mapped[Decimal] = mapped_column(Numeric(5, 2))
+    dominant_crime: Mapped[str | None] = mapped_column(String(100))
+    score: Mapped[Decimal] = mapped_column(Numeric(5, 2))
+    period_start: Mapped[datetime] = mapped_column(DateTime(6))
+    period_end: Mapped[datetime] = mapped_column(DateTime(6))
+    calculated_at: Mapped[datetime] = mapped_column(DateTime(6), default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("area_crime_scores_area_idx", "area"),
+    )

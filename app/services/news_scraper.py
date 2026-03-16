@@ -107,15 +107,16 @@ async def scrape_detik(config: ScrapeConfig | None = None) -> list[RawArticle]:
 
     articles: list[RawArticle] = []
     base_urls = [
-        "https://www.detik.com/bali/hukum-kriminal",
-        "https://www.detik.com/bali/hukum-kriminal/indeks",
+        "https://www.detik.com/tag/nusa-tenggara-barat/?sortby=time&page=",
+        "https://www.detik.com/bali/hukum-kriminal/indeks?page=",
+        "https://www.detik.com/tag/polda-ntb/?sortby=time&page="
     ]
     urls = []
     for base_url in base_urls:
         urls.append(base_url)
-        if "indeks" in base_url:
+        if "indeks" in base_url or "page=" in base_url:
             for page in range(2, config.max_pages + 1):
-                urls.append(f"{base_url}/{page}")
+                urls.append(f"{base_url}{page}")
 
     ntb_keywords = [
         "ntb",

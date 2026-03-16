@@ -52,7 +52,7 @@ async def build_graph(
         if seg.near_security_post:
             safety_factor *= 0.6
 
-        weight = dist * (1 + risk / 100 * safety_factor)
+        weight = dist * (1 + (risk / 100)) * safety_factor
 
         G.add_edge(s, e, weight=weight, distance=dist, risk=risk, segment_id=seg.id)
 

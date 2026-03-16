@@ -6,7 +6,7 @@ from app.core.firebase import verify_firebase_token
 from app.core.config import get_settings
 from app.schemas.analysis_schemas import CoordinatesIn, RiskAnalysisOut, SafeRouteOut
 from app.repositories.repos import SegmentRepository, RiskScoreRepository
-from app.repositories.news_repos import NewsArticleRepository
+from app.repositories.news_repos import NewsArticleRepository, AreaCrimeScoreRepository
 from app.services.risk_analysis import analyze_path_risk
 from app.services.routing import calculate_safe_route
 from app.services.analysis_sync import refresh_analysis_state
@@ -27,6 +27,7 @@ async def analyze_risk(
     segment_repo = SegmentRepository(db)
     risk_repo = RiskScoreRepository(db)
     news_repo = NewsArticleRepository(db)
+    area_risk_repo = AreaCrimeScoreRepository(db)
 
     segments = await segment_repo.get_all()
     news_articles = await news_repo.get_recent_crime_articles(settings.RISK_DECAY_DAYS)
@@ -52,7 +53,27 @@ async def analyze_risk(
             "lng": lng,
         })
 
+    area_risk_rows = await area_risk_repo.list_latest(limit=50)
+    area_risk_scores = []
+    for row in area_risk_rows:
+        coords = get_area_coordinates(row.area)
+        if not coords:
+            continue
+        lat, lng = coords
+        area_risk_scores.append(
+            {
+                "area": row.area,
+                "risk_score": float(row.score),
+                "total_articles": row.total_articles,
+                "avg_severity": float(row.avg_severity),
+                "dominant_crime": row.dominant_crime,
+                "lat": lat,
+                "lng": lng,
+            }
+        )
+
     result["news_locations"] = news_locations
+    result["area_risk_scores"] = area_risk_scores
     return result
 
 

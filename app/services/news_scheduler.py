@@ -57,12 +57,21 @@ async def run_scrape_job(trigger_analysis_sync: bool = True) -> dict:
         "enriched_snippets": enriched_count,
         "analysis_synced": False,
         "heatmap_clusters": 0,
+        "risk_scores": 0,
+        "area_scores": 0,
+        "segments": 0,
     }
 
     if trigger_analysis_sync:
-        analysis_result = await run_analysis_sync_job()
-        result["analysis_synced"] = True
-        result["heatmap_clusters"] = analysis_result["clusters"]
+        try:
+            analysis_result = await run_analysis_sync_job()
+            result["analysis_synced"] = True
+            result["heatmap_clusters"] = analysis_result["clusters"]
+            result["risk_scores"] = analysis_result["risk_scores"]
+            result["area_scores"] = analysis_result["area_scores"]
+            result["segments"] = analysis_result["segments"]
+        except Exception:
+            logger.exception("Analysis sync after scrape failed")
 
     logger.info(
         "Scrape complete: %d scraped, %d crime-related, %d new, analysis_synced=%s, heatmap_clusters=%d",

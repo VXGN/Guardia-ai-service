@@ -2,10 +2,11 @@
 
 from datetime import datetime, timedelta
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.tables import NewsArticle
+from app.models.tables import NewsArticle, AreaCrimeScore
 
 
 class NewsArticleRepository:
@@ -89,3 +90,71 @@ class NewsArticleRepository:
             )
         )
         return result.scalar_one()
+
+
+class AreaCrimeScoreRepository:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def _create_table_if_missing(self):
+        await self.db.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS area_crime_scores (
+                    id VARCHAR(36) PRIMARY KEY,
+                    area VARCHAR(100) NOT NULL,
+                    total_articles INTEGER NOT NULL,
+                    avg_severity NUMERIC(5, 2) NOT NULL,
+                    dominant_crime VARCHAR(100),
+                    score NUMERIC(5, 2) NOT NULL,
+                    period_start TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                    period_end TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                    calculated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+                );
+                """
+            )
+        )
+        await self.db.execute(
+            text(
+                """
+                CREATE INDEX IF NOT EXISTS area_crime_scores_area_idx
+                ON area_crime_scores (area);
+                """
+            )
+        )
+        await self.db.commit()
+
+    async def replace_all(self, rows: list[dict]) -> int:
+        try:
+            await self.db.execute(AreaCrimeScore.__table__.delete())
+        except ProgrammingError as exc:
+            if "area_crime_scores" not in str(exc):
+                raise
+            await self.db.rollback()
+            await self._create_table_if_missing()
+            await self.db.execute(AreaCrimeScore.__table__.delete())
+
+        for row in rows:
+            self.db.add(AreaCrimeScore(**row))
+        await self.db.commit()
+        return len(rows)
+
+    async def list_latest(self, limit: int = 50) -> list[AreaCrimeScore]:
+        try:
+            result = await self.db.execute(
+                select(AreaCrimeScore)
+                .order_by(AreaCrimeScore.score.desc(), AreaCrimeScore.total_articles.desc())
+                .limit(limit)
+            )
+        except ProgrammingError as exc:
+            if "area_crime_scores" not in str(exc):
+                raise
+            await self.db.rollback()
+            await self._create_table_if_missing()
+            result = await self.db.execute(
+                select(AreaCrimeScore)
+                .order_by(AreaCrimeScore.score.desc(), AreaCrimeScore.total_articles.desc())
+                .limit(limit)
+            )
+
+        return list(result.scalars().all())

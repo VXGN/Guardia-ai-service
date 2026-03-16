@@ -46,7 +46,7 @@ def start_background_sync(stop_event: asyncio.Event) -> list[asyncio.Task]:
         _run_loop(
             name="news",
             interval_seconds=settings.NEWS_SYNC_INTERVAL_SECONDS,
-            job=lambda: run_scrape_job(trigger_analysis_sync=False),
+            job=run_scrape_job,
             stop_event=stop_event,
             run_on_startup=settings.RUN_SYNC_ON_STARTUP,
         )

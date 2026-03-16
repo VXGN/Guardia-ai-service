@@ -1,7 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, text
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.database import engine
 from app.models.tables import (
     IncidentReport, RoadSegment, RiskScore, HeatmapCluster,
     Journey, JourneyLocationLog,
@@ -101,6 +103,15 @@ class SegmentRepository:
         )
         return list(result.scalars().all())
 
+    async def bulk_create(self, segments: list[dict]) -> int:
+        if not segments:
+            return 0
+
+        rows = [RoadSegment(**segment) for segment in segments]
+        self.db.add_all(rows)
+        await self.db.commit()
+        return len(rows)
+
 
 class RiskScoreRepository:
     def __init__(self, db: AsyncSession):
@@ -115,11 +126,13 @@ class RiskScoreRepository:
         )
         row = existing.scalar_one_or_none()
         now = datetime.utcnow()
+        valid_until = now + timedelta(hours=6)
         if row:
             row.risk_score = Decimal(str(score)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             row.incident_count = count
             row.dominant_incident_type = dominant
             row.calculated_at = now
+            row.valid_until = valid_until
         else:
             row = RiskScore(
                 segment_id=segment_id,
@@ -128,9 +141,9 @@ class RiskScoreRepository:
                 incident_count=count,
                 dominant_incident_type=dominant,
                 calculated_at=now,
+                valid_until=valid_until,
             )
             self.db.add(row)
-        await self.db.commit()
 
     async def get_by_segment(self, segment_id: str) -> list[RiskScore]:
         result = await self.db.execute(
@@ -146,10 +159,159 @@ class RiskScoreRepository:
         )
         return list(result.scalars().all())
 
+    async def total_count(self) -> int:
+        result = await self.db.execute(select(func.count(RiskScore.id)))
+        return result.scalar_one()
+
 
 class HeatmapRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def _ensure_postgres_enums(self):
+        """Create required enum types if missing in PostgreSQL."""
+        bind = self.db.get_bind()
+        if bind is None or bind.dialect.name != "postgresql":
+            return
+
+        async with engine.begin() as conn:
+            await conn.execute(
+                text(
+                    """
+                    DO $$
+                    BEGIN
+                        CREATE TYPE incidenttype AS ENUM (
+                            'verbal_harassment',
+                            'physical_harassment',
+                            'stalking',
+                            'theft',
+                            'intimidation',
+                            'other'
+                        );
+                    EXCEPTION
+                        WHEN duplicate_object THEN NULL;
+                    END
+                    $$;
+                    """
+                )
+            )
+            await conn.execute(
+                text(
+                    """
+                    DO $$
+                    BEGIN
+                        CREATE TYPE timeslot AS ENUM ('morning', 'afternoon', 'evening', 'night');
+                    EXCEPTION
+                        WHEN duplicate_object THEN NULL;
+                    END
+                    $$;
+                    """
+                )
+            )
+            await conn.execute(
+                text(
+                    """
+                    DO $$
+                    BEGIN
+                        CREATE TYPE heatmapintensity AS ENUM ('low', 'medium', 'high', 'critical');
+                    EXCEPTION
+                        WHEN duplicate_object THEN NULL;
+                    END
+                    $$;
+                    """
+                )
+            )
+
+            await conn.execute(
+                text(
+                    """
+                    DO $$
+                    DECLARE
+                        intensity_typ text;
+                        dominant_typ text;
+                        slot_typ text;
+                        risk_slot_typ text;
+                        risk_dom_typ text;
+                    BEGIN
+                        SELECT t.typname INTO intensity_typ
+                        FROM pg_attribute a
+                        JOIN pg_class c ON c.oid = a.attrelid
+                        JOIN pg_type t ON t.oid = a.atttypid
+                        WHERE c.relname = 'heatmap_clusters'
+                          AND a.attname = 'intensity'
+                          AND a.attnum > 0
+                          AND NOT a.attisdropped;
+
+                        IF intensity_typ = 'HeatmapIntensity' THEN
+                            ALTER TABLE heatmap_clusters
+                            ALTER COLUMN intensity TYPE heatmapintensity
+                            USING intensity::text::heatmapintensity;
+                        END IF;
+
+                        SELECT t.typname INTO dominant_typ
+                        FROM pg_attribute a
+                        JOIN pg_class c ON c.oid = a.attrelid
+                        JOIN pg_type t ON t.oid = a.atttypid
+                        WHERE c.relname = 'heatmap_clusters'
+                          AND a.attname = 'dominant_type'
+                          AND a.attnum > 0
+                          AND NOT a.attisdropped;
+
+                        IF dominant_typ = 'IncidentType' THEN
+                            ALTER TABLE heatmap_clusters
+                            ALTER COLUMN dominant_type TYPE incidenttype
+                            USING dominant_type::text::incidenttype;
+                        END IF;
+
+                        SELECT t.typname INTO slot_typ
+                        FROM pg_attribute a
+                        JOIN pg_class c ON c.oid = a.attrelid
+                        JOIN pg_type t ON t.oid = a.atttypid
+                        WHERE c.relname = 'heatmap_clusters'
+                          AND a.attname = 'time_slot'
+                          AND a.attnum > 0
+                          AND NOT a.attisdropped;
+
+                        IF slot_typ = 'TimeSlot' THEN
+                            ALTER TABLE heatmap_clusters
+                            ALTER COLUMN time_slot TYPE timeslot
+                            USING time_slot::text::timeslot;
+                        END IF;
+
+                        SELECT t.typname INTO risk_slot_typ
+                        FROM pg_attribute a
+                        JOIN pg_class c ON c.oid = a.attrelid
+                        JOIN pg_type t ON t.oid = a.atttypid
+                        WHERE c.relname = 'risk_scores'
+                          AND a.attname = 'time_slot'
+                          AND a.attnum > 0
+                          AND NOT a.attisdropped;
+
+                        IF risk_slot_typ = 'TimeSlot' THEN
+                            ALTER TABLE risk_scores
+                            ALTER COLUMN time_slot TYPE timeslot
+                            USING time_slot::text::timeslot;
+                        END IF;
+
+                        SELECT t.typname INTO risk_dom_typ
+                        FROM pg_attribute a
+                        JOIN pg_class c ON c.oid = a.attrelid
+                        JOIN pg_type t ON t.oid = a.atttypid
+                        WHERE c.relname = 'risk_scores'
+                          AND a.attname = 'dominant_incident_type'
+                          AND a.attnum > 0
+                          AND NOT a.attisdropped;
+
+                        IF risk_dom_typ = 'IncidentType' THEN
+                            ALTER TABLE risk_scores
+                            ALTER COLUMN dominant_incident_type TYPE incidenttype
+                            USING dominant_incident_type::text::incidenttype;
+                        END IF;
+                    END
+                    $$;
+                    """
+                )
+            )
 
     async def get_active(self, time_slot: TimeSlot | None = None) -> list[HeatmapCluster]:
         now = datetime.utcnow()
@@ -160,12 +322,31 @@ class HeatmapRepository:
         return list(result.scalars().all())
 
     async def replace_clusters(self, clusters: list[HeatmapCluster]):
-        await self.db.execute(
-            HeatmapCluster.__table__.delete()
-        )
-        for c in clusters:
-            self.db.add(c)
-        await self.db.commit()
+        await self._ensure_postgres_enums()
+
+        try:
+            await self.db.execute(HeatmapCluster.__table__.delete())
+            for c in clusters:
+                self.db.add(c)
+            await self.db.commit()
+        except ProgrammingError as exc:
+            # Retry once after forcing enum bootstrap; covers missing types
+            # and legacy enum name mismatches.
+            error_text = str(exc)
+            if (
+                "does not exist" not in error_text
+                and "heatmapintensity" not in error_text
+                and "datatype mismatch" not in error_text.lower()
+            ):
+                raise
+
+            await self.db.rollback()
+            await self._ensure_postgres_enums()
+
+            await self.db.execute(HeatmapCluster.__table__.delete())
+            for c in clusters:
+                self.db.add(c)
+            await self.db.commit()
 
     async def total_count(self) -> int:
         result = await self.db.execute(select(func.count(HeatmapCluster.id)))

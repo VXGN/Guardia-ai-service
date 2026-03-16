@@ -27,11 +27,22 @@ class NewsLocationPoint(BaseModel):
     lng: float
 
 
+class AreaRiskScoreOut(BaseModel):
+    area: str
+    risk_score: float
+    total_articles: int
+    avg_severity: float
+    dominant_crime: str | None
+    lat: float
+    lng: float
+
+
 class RiskAnalysisOut(BaseModel):
     overall_risk_score: float
     risk_level: str
     segments: list[SegmentRisk]
     news_locations: list[NewsLocationPoint]
+    area_risk_scores: list[AreaRiskScoreOut]
     recommendations: list[str]
     analyzed_at: str
 

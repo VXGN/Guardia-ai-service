@@ -1,10 +1,19 @@
 import math
 from datetime import datetime
 from collections import Counter
+from typing import Protocol
 
-from app.models.tables import RoadSegment, IncidentReport
+from app.models.tables import RoadSegment
 from app.models.enums import TimeSlot
 from app.repositories.repos import RiskScoreRepository
+
+
+class IncidentLike(Protocol):
+    latitude: float
+    longitude: float
+    incident_type: object
+    incident_at: datetime
+    severity_score: int | None
 
 
 def _haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -29,9 +38,11 @@ def _get_time_slot(dt: datetime) -> TimeSlot:
 
 async def compute_risk_scores(
     segments: list[RoadSegment],
-    reports: list[IncidentReport],
+    reports: list[IncidentLike],
     risk_repo: RiskScoreRepository,
 ):
+    current_slot = _get_time_slot(datetime.utcnow())
+
     for segment in segments:
         seg_lat = (float(segment.start_lat) + float(segment.end_lat)) / 2
         seg_lng = (float(segment.start_lng) + float(segment.end_lng)) / 2
@@ -41,10 +52,14 @@ async def compute_risk_scores(
             if _haversine(float(r.latitude), float(r.longitude), seg_lat, seg_lng) < 500
         ]
 
-        slots: dict[TimeSlot, list[IncidentReport]] = {}
+        slots: dict[TimeSlot, list[IncidentLike]] = {}
         for r in nearby:
             slot = _get_time_slot(r.incident_at)
             slots.setdefault(slot, []).append(r)
+
+        if not slots:
+            await risk_repo.upsert(segment.id, current_slot, 0.0, 0, None)
+            continue
 
         for slot, slot_reports in slots.items():
             count = len(slot_reports)
@@ -62,6 +77,8 @@ async def compute_risk_scores(
             dominant = Counter(types).most_common(1)[0][0] if types else None
 
             await risk_repo.upsert(segment.id, slot, round(base_score, 2), count, dominant)
+
+    await risk_repo.db.commit()
 
 
 async def analyze_path_risk(
