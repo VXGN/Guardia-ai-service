@@ -1,7 +1,6 @@
 """Pydantic schemas for news scraping API."""
 
 from datetime import datetime
-from decimal import Decimal
 
 from pydantic import BaseModel
 
@@ -19,25 +18,6 @@ class NewsArticleOut(BaseModel):
     scraped_at: datetime
 
     model_config = {"from_attributes": True}
-
-
-class AreaCrimeScoreOut(BaseModel):
-    id: str
-    area: str
-    total_articles: int
-    avg_severity: Decimal
-    dominant_crime: str | None
-    score: Decimal
-    period_start: datetime
-    period_end: datetime
-    calculated_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
-class AreaDetailOut(BaseModel):
-    score: AreaCrimeScoreOut | None = None
-    recent_articles: list[NewsArticleOut]
 
 
 class ScrapeResultOut(BaseModel):

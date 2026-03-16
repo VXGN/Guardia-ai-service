@@ -9,9 +9,7 @@ from app.schemas.journey_schemas import (
     JourneyStartIn, JourneyUpdateIn, JourneyStopIn, JourneyOut,
 )
 from app.schemas.admin_schemas import AdminStatsOut, ClusterOut, PriorityAreaOut
-from app.schemas.news_schemas import (
-    NewsArticleOut, AreaCrimeScoreOut, AreaDetailOut, ScrapeResultOut, NewsListQuery,
-)
+from app.schemas.news_schemas import NewsArticleOut, ScrapeResultOut, NewsListQuery
 
 __all__ = [
     # Reports
@@ -25,5 +23,5 @@ __all__ = [
     # Admin
     "AdminStatsOut", "ClusterOut", "PriorityAreaOut",
     # News
-    "NewsArticleOut", "AreaCrimeScoreOut", "AreaDetailOut", "ScrapeResultOut", "NewsListQuery",
+    "NewsArticleOut", "ScrapeResultOut", "NewsListQuery",
 ]

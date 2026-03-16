@@ -8,7 +8,7 @@ from datetime import datetime
 from app.core.database import async_session
 from app.services.news_scraper import scrape_all_sources, enrich_articles_with_first_paragraph
 from app.services.crime_scorer import analyze_article
-from app.repositories.news_repos import NewsArticleRepository, AreaCrimeScoreRepository
+from app.repositories.news_repos import NewsArticleRepository
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +48,6 @@ async def run_scrape_job() -> dict:
     async with async_session() as db:
         article_repo = NewsArticleRepository(db)
         new_count = await article_repo.bulk_create(scored_articles)
-
-        all_recent = await article_repo.get_recent_crime_articles(days=30)
-        score_repo = AreaCrimeScoreRepository(db)
-        await score_repo.calculate_and_store(all_recent, days=30)
 
     result = {
         "total_scraped": total_scraped,

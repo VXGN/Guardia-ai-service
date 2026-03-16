@@ -1,13 +1,11 @@
-"""Repositories for news articles and area crime scores."""
+"""Repositories for news articles."""
 
-from collections import Counter
 from datetime import datetime, timedelta
-from decimal import Decimal, ROUND_HALF_UP
 
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.tables import NewsArticle, AreaCrimeScore
+from app.models.tables import NewsArticle
 
 
 class NewsArticleRepository:
@@ -91,67 +89,3 @@ class NewsArticleRepository:
             )
         )
         return result.scalar_one()
-
-
-class AreaCrimeScoreRepository:
-    def __init__(self, db: AsyncSession):
-        self.db = db
-
-    async def replace_scores(self, scores: list[dict]):
-        """Delete all existing scores and insert new ones."""
-        await self.db.execute(delete(AreaCrimeScore))
-        for data in scores:
-            self.db.add(AreaCrimeScore(**data))
-        await self.db.commit()
-
-    async def get_all(self) -> list[AreaCrimeScore]:
-        result = await self.db.execute(
-            select(AreaCrimeScore).order_by(AreaCrimeScore.score.desc())
-        )
-        return list(result.scalars().all())
-
-    async def get_by_area(self, area: str) -> AreaCrimeScore | None:
-        result = await self.db.execute(
-            select(AreaCrimeScore).where(AreaCrimeScore.area == area)
-        )
-        return result.scalar_one_or_none()
-
-    async def calculate_and_store(self, articles: list[NewsArticle], days: int = 30):
-        """Calculate area crime scores from articles and store them."""
-        now = datetime.utcnow()
-        period_start = now - timedelta(days=days)
-
-        area_articles: dict[str, list[NewsArticle]] = {}
-        for article in articles:
-            if article.area and article.severity_score is not None:
-                area_articles.setdefault(article.area, []).append(article)
-
-        scores: list[dict] = []
-        for area, area_arts in area_articles.items():
-            total = len(area_arts)
-            severities = [a.severity_score for a in area_arts if a.severity_score]
-            avg_sev = sum(severities) / len(severities) if severities else 0
-
-            crime_types = [a.crime_type for a in area_arts if a.crime_type]
-            dominant = Counter(crime_types).most_common(1)[0][0] if crime_types else None
-
-            composite = min(
-                Decimal("100"),
-                Decimal(str(total * 2)) + Decimal(str(avg_sev * 5)),
-            ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-            scores.append({
-                "area": area,
-                "total_articles": total,
-                "avg_severity": Decimal(str(avg_sev)).quantize(
-                    Decimal("0.01"), rounding=ROUND_HALF_UP
-                ),
-                "dominant_crime": dominant,
-                "score": composite,
-                "period_start": period_start,
-                "period_end": now,
-                "calculated_at": now,
-            })
-
-        await self.replace_scores(scores)
-        return scores

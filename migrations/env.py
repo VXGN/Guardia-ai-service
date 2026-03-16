@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 from app.core.config import get_settings
-from app.core.database import Base
+from app.core.database import Base, get_async_database_url, get_async_engine_kwargs
 from app.models import tables  # noqa: F401
 
 # this is the Alembic Config object, which provides
@@ -25,7 +25,8 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
 
-config.set_main_option("sqlalchemy.url", get_settings().DATABASE_URL)
+# Use the processed URL that's compatible with asyncpg
+config.set_main_option("sqlalchemy.url", get_async_database_url())
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -75,6 +76,7 @@ def run_migrations_online() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        **get_async_engine_kwargs(),
     )
 
     import asyncio

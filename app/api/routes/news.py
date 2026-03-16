@@ -1,4 +1,4 @@
-"""API routes for news scraping and crime area scores."""
+"""API routes for news scraping."""
 
 import asyncio
 import logging
@@ -8,13 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.firebase import verify_firebase_token
-from app.repositories.news_repos import NewsArticleRepository, AreaCrimeScoreRepository
-from app.schemas.news_schemas import (
-    NewsArticleOut,
-    AreaCrimeScoreOut,
-    AreaDetailOut,
-    ScrapeResultOut,
-)
+from app.repositories.news_repos import NewsArticleRepository
+from app.schemas.news_schemas import NewsArticleOut, ScrapeResultOut
 from app.services.news_scheduler import run_scrape_job
 
 router = APIRouter(prefix="/news", tags=["news"])
@@ -40,32 +35,6 @@ async def list_articles(
         limit=limit,
     )
     return [NewsArticleOut.model_validate(a) for a in articles]
-
-
-@router.get("/area-scores", response_model=list[AreaCrimeScoreOut])
-async def get_area_scores(db: AsyncSession = Depends(get_db)):
-    """Get crime scores for all NTB areas, sorted by score descending."""
-    repo = AreaCrimeScoreRepository(db)
-    scores = await repo.get_all()
-    return [AreaCrimeScoreOut.model_validate(s) for s in scores]
-
-
-@router.get("/area-scores/{area}", response_model=AreaDetailOut)
-async def get_area_detail(area: str, db: AsyncSession = Depends(get_db)):
-    """Get detailed crime score and recent articles for a specific NTB area."""
-    score_repo = AreaCrimeScoreRepository(db)
-    article_repo = NewsArticleRepository(db)
-
-    score = await score_repo.get_by_area(area)
-    if not score:
-        return AreaDetailOut(score=None, recent_articles=[])
-
-    recent = await article_repo.get_articles_for_area(area, days=30)
-
-    return AreaDetailOut(
-        score=AreaCrimeScoreOut.model_validate(score),
-        recent_articles=[NewsArticleOut.model_validate(a) for a in recent],
-    )
 
 
 @router.post("/scrape", response_model=ScrapeResultOut)
