@@ -39,6 +39,14 @@ def upgrade() -> None:
     time_slot_enum = sa.Enum("morning", "afternoon", "evening", "night", name="timeslot")
     heatmap_intensity_enum = sa.Enum("low", "medium", "high", "critical", name="heatmapintensity")
 
+    # Create enum types in PostgreSQL first
+    user_role_enum.create(op.get_bind(), checkfirst=True)
+    incident_type_enum.create(op.get_bind(), checkfirst=True)
+    report_status_enum.create(op.get_bind(), checkfirst=True)
+    journey_status_enum.create(op.get_bind(), checkfirst=True)
+    time_slot_enum.create(op.get_bind(), checkfirst=True)
+    heatmap_intensity_enum.create(op.get_bind(), checkfirst=True)
+
     op.create_table(
         "users",
         sa.Column("id", sa.String(length=36), nullable=False),
@@ -222,4 +230,12 @@ def downgrade() -> None:
     op.drop_table("heatmap_clusters")
     op.drop_table("road_segments")
     op.drop_table("users")
+
+    # Drop enum types
+    sa.Enum(name="heatmapintensity").drop(op.get_bind(), checkfirst=True)
+    sa.Enum(name="timeslot").drop(op.get_bind(), checkfirst=True)
+    sa.Enum(name="journeystatus").drop(op.get_bind(), checkfirst=True)
+    sa.Enum(name="reportstatus").drop(op.get_bind(), checkfirst=True)
+    sa.Enum(name="incidenttype").drop(op.get_bind(), checkfirst=True)
+    sa.Enum(name="userrole").drop(op.get_bind(), checkfirst=True)
 
